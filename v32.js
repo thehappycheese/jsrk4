@@ -44,10 +44,17 @@ class v32{
      */
     static from_columns(data){
         if (!data.every((item, index, arr)=>item.length===arr[0].length)) throw new Error("Columns must all be the same length");
-        return v32.from_rows(
-            Array.from(new Array(data[0].length),
-            (item, index)=>data.map(item=>item[index])).flat()
-        );
+        let columns = data.length;
+        let rows    = data[0].length;
+
+        return new v32(
+            Float32Array.from(
+                new Float32Array(rows * columns),
+                (item, index) => data[index % columns][Math.floor(index / columns)]
+            ),
+            rows,
+            columns
+        )
     }
 
     /**
@@ -59,32 +66,67 @@ class v32{
         return new v32(new Float32Array(data), data.length, 1);
     }
 
+    /**
+     * 
+     * @param {Array<Array<Number>>} index_pairs
+     * @param {v32} store
+     * @returns {v32} store
+     */
+    arg_delta_store(index_pairs, store){
+        let result_index = 0;
+        for(let [index_a, index_b] of index_pairs){
+            index_a *= this.columns;
+            index_b *= this.columns;
+            let a = this.data.subarray(
+                index_a, index_a+this.columns)
+            let b = this.data.subarray(index_b, index_b+this.columns)
+            for(let k=0; k < this.columns; k++){
+                store.data[result_index+k] = b[k]-a[k]
+            }
+            result_index += this.columns;
+        }
+        return store;
+    }
+    /**
+    * @returns {v32} a copy of this v32 object refering to a new array in memory
+    */
     clone(){
-        return new v32(this.data.copy(), this.rows, this.columns)
+        return new v32(Float32Array.from(this.data), this.rows, this.columns);
     }
 
     // ========================================
     // == opperations on equaly sized arrays ==
     // ========================================
     /**
-     * 
+     * Add other to self
      * @param {v32} other
      * @returns {v32} self
      */
-    add_to_self(other){
+    add_self(other){
         for(let i = 0;i<this.data.length;i++){
             this.data[i]+=other.data[i];
         }
         return this;
     }
     /**
-     * 
+     * sub other from self
      * @param {v32} other 
      * @returns {v32} self
      */
-    sub_from_self(other){
+    sub_self(other){
         for(let i = 0;i<this.data.length;i++){
             this.data[i]-=other.data[i];
+        }
+        return this;
+    }
+    /**
+     * multiply other from self (elementwise)
+     * @param {v32} other 
+     * @returns {v32} self
+     */
+     mul_self(other){
+        for(let i = 0; i < this.data.length; i++){
+            this.data[i] *= other.data[i];
         }
         return this;
     }
@@ -97,7 +139,7 @@ class v32{
      */
     add_then_store(other, store){
         for(let i = 0;i<this.data.length;i++){
-            store.data[i] = self.data[i] + other.data[i];
+            store.data[i] = this.data[i] + other.data[i];
         }
         return store;
     }
@@ -108,9 +150,9 @@ class v32{
      * @param {v32} store
      * @returns {v32} store
      */
-    sub_then_store(other, store){
+    sub_store(other, store){
         for(let i = 0;i<this.data.length;i++){
-            store.data[i] = self.data[i] - other.data[i];
+            store.data[i] = this.data[i] - other.data[i];
         }
         return store;
     }
@@ -121,10 +163,35 @@ class v32{
      * @param {v32} store
      * @returns {v32} store
      */
-    scalar_mul_then_store(scalar, store){
+    scalar_mul_store(scalar, store){
         scalar = Math.fround(scalar)
         for(let i = 0;i<this.data.length;i++){
             store.data[i] = this.data[i] * scalar;
+        }
+        return store;
+    }
+
+    /**
+     * 
+     * @param {Number} scalar
+     * @param {v32} store
+     * @returns {v32} store
+     */
+    scalar_div_store(scalar, store){
+        scalar = Math.fround(scalar)
+        for(let i = 0; i<this.data.length; i++){
+            store.data[i] = this.data[i] / scalar;
+        }
+        return store;
+    }
+
+    /**
+     * 
+     * @param {v32} store
+     */
+    magnitude_store(store){
+        for(let i=0; i<this.rows; i+=1){
+            store.data[i] = Math.sqrt(this.data.subarray(i*this.columns, (i + 1)*this.columns).reduce((acc, cur)=>acc+cur**2, 0))
         }
         return store;
     }
@@ -138,17 +205,20 @@ class v32{
         for(let i = 0; i<this.data.length; i++){
             store[i % row] += this.data[i] * other.data[i]
         }
-        return store
+        return store;
     }
 
     // norm_then_store()
 
     toString(){
         const PAD_WIDTH = 12;
-        const MAX_ROWS = 21; // should be be an uneven number for neatness
+        const MAX_ROWS = 20;
         const HALF_MAX = Math.floor(MAX_ROWS/2);
-        let out = []
-        if(this.rows < MAX_ROWS+1){
+        let out = [
+            `v32 (${this.columns}, ${this.rows})`.padStart((PAD_WIDTH)*this.columns+this.columns-1, " "),
+            "".padEnd((PAD_WIDTH)*this.columns+this.columns-1, "-")
+        ]
+        if(this.rows < HALF_MAX*2 + 1){
             for(let i = 0;i<this.data.length;i+=this.columns){
                 out.push([...this.data.subarray(i,i+this.columns)].map(item=>item.toFixed(5).padStart(PAD_WIDTH)).join(" "))
             }

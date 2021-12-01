@@ -88,8 +88,8 @@ for(k=0;k<20;k++){
 console.log(times)
 console.log(times.reduce((acc,item)=>acc+item)/times.length)
 
-function mul_js2(a,b){
-    return a*b
+function mul_js2(a, b){
+    return a * b
 }
 
 console.log("multiply in function - 64 bit js")
