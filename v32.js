@@ -18,7 +18,6 @@ class v32{
 
 
     /**
-     * 
      * @param {Float32Array} data 
      * @param {Number} rows 
      * @param {Number} columns 
@@ -31,7 +30,6 @@ class v32{
     }
 
     /**
-     * 
      * @param {Number} rows 
      * @param {Number} columns 
      * @returns {v32} a zero filled array of the specified size
@@ -41,7 +39,6 @@ class v32{
     }
 
     /**
-     * 
      * @param {Array<Array<Number>>} data 
      * @returns {v32} a new v32 array
      */
@@ -50,7 +47,6 @@ class v32{
     }
 
     /**
-     * 
      * @param {Array<Array<Number>>} data 
      * @returns {v32} new v32 array
      */
@@ -70,7 +66,6 @@ class v32{
     }
 
     /**
-     * 
      * @param {Array<Number>} data 
      * @returns {v32} a new v32 array
      */
@@ -79,21 +74,25 @@ class v32{
     }
 
     /**
-     * 
      * @param {Array<Array<Number>>} index_pairs
      * @param {v32} store
      * @returns {v32} store
      */
     arg_delta_store(index_pairs, store){
         let result_index = 0;
-        for(let i =0; i<index_pairs.length; i++){
+        for(let i =0; i<index_pairs.length; i+=2){
             let index_a = index_pairs[i]   * this.columns;
             let index_b = index_pairs[i+1] * this.columns;
-            let a = this.data.subarray(index_a, index_a + this.columns)
-            let b = this.data.subarray(index_b, index_b + this.columns)
+            // let a = this.data.subarray(index_a, index_a + this.columns)
+            // let b = this.data.subarray(index_b, index_b + this.columns)
+            // for(let k=0; k < this.columns; k++){
+            //     store.data[result_index+k] = b[k]-a[k]
+            // }
+
             for(let k=0; k < this.columns; k++){
-                store.data[result_index+k] = b[k]-a[k]
+                store.data[result_index+k] = this.data[index_a + k] - this.data[index_b + k]
             }
+
             result_index += this.columns;
         }
         return store;
@@ -183,15 +182,27 @@ class v32{
         return this;
     }
 
-    mul_column_self(column){
-        for(let i = 0; i < column.data.length; i++){
-            let offset = i*this.columns;
+    /**
+     * Multiply every column in self by the coresponding item in other (other must be a column vector)
+     * 
+     * `assert column.columns === 1`
+     * 
+     * `assert column.rows === this.rows`
+     * 
+     * @param {v32} other
+     * @returns {v32} self
+     */
+    mul_column_self(other){
+        
+        for(let i = 0; i < other.data.length; i++){
+            let offset = i * this.columns;
             for(let j=0;j<this.columns;j++){
-                this.data[offset + j] *= column.data[i];
+                this.data[offset + j] *= other.data[i];
             }
         }
         return this;
     }
+
     /**
      * @param {Number} scalar
      * @returns {v32} self
@@ -199,7 +210,7 @@ class v32{
      scalar_mul_self(scalar){
         scalar = Math.fround(scalar)
         for(let i = 0;i<this.data.length;i++){
-            store.data[i] = this.data[i] * scalar;
+            this.data[i] *= scalar;
         }
         return this;
     }
@@ -220,7 +231,6 @@ class v32{
     }
 
     /**
-     * 
      * @param {v32} other
      * @param {v32} store
      * @returns {v32} store
@@ -233,7 +243,6 @@ class v32{
     }
 
     /**
-     * 
      * @param {v32} other
      * @param {v32} store
      * @returns {v32} store
@@ -246,7 +255,6 @@ class v32{
     }
 
     /**
-     * 
      * @param {Number} scalar
      * @param {v32} store
      * @returns {v32} store
@@ -260,7 +268,6 @@ class v32{
     }
 
     /**
-     * 
      * @param {Number} scalar
      * @param {v32} store
      * @returns {v32} store
@@ -274,7 +281,6 @@ class v32{
     }
 
     /**
-     * 
      * @param {v32} store
      */
     magnitude_store(store){
@@ -285,7 +291,6 @@ class v32{
     }
 
     /**
-     * 
      * @param {v32} other 
      * @param {Float32Array} store 
      */
