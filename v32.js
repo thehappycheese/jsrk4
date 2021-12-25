@@ -6,12 +6,15 @@
 // 12, 13, 14
 // 15, 16, 17
 // ....
-// Each vector 
 
 
-// note: calling mul_column_self(_.invert_self()) is about half as fast
-
+/**
+ * @property {Float32Array} data
+ * @property {number} rows
+ * @property {number} columns
+ */
 class v32{
+
     data;
     rows;
     columns;
@@ -29,86 +32,65 @@ class v32{
         this.columns = columns;
     }
 
-    /**
-     * @param {Number} rows 
-     * @param {Number} columns 
-     * @returns {v32} a zero filled array of the specified size
-     */
-    static from_zeros(rows, columns){
-        return new v32(new Float32Array(rows * columns), rows, columns);
+    // ========================= STATIC CONSTRUCTORS / FACTORY FUNCTIONS =======
+
+    static from = {   
+        /**
+         * @param {Number} rows 
+         * @param {Number} columns 
+         * @returns {v32} a zero filled array of the specified size
+         */
+        zeros(rows, columns){
+            return new v32(new Float32Array(rows * columns), rows, columns);
+        },
+
+        /**
+         * @param {Array<Array<Number>>} data 
+         * @returns {v32} a new v32 array
+         */
+        rows(data){
+            return new v32(new Float32Array(data.flat()), data.length, data[0].length);
+        },
+
+        /**
+         * @param {Array<Array<Number>>} data 
+         * @returns {v32} new v32 array
+         */
+        columns(data){
+            if (!data.every((item, index, arr)=>item.length===arr[0].length)) throw new Error("Columns must all be the same length");
+            let columns = data.length;
+            let rows    = data[0].length;
+
+            return new v32(
+                Float32Array.from(
+                    new Float32Array(rows * columns),
+                    (item, index) => data[index % columns][Math.floor(index / columns)]
+                ),
+                rows,
+                columns
+            )
+        },
+
+        /**
+         * @param {Array<Number>} data 
+         * @returns {v32} a new v32 array
+         */
+        column(data){
+            return new v32(new Float32Array(data), data.length, 1);
+        },
     }
 
     /**
-     * @param {Array<Array<Number>>} data 
-     * @returns {v32} a new v32 array
+     * @returns {v32} a copy of this v32 object refering to a new array in memory
      */
-    static from_rows(data){
-        return new v32(new Float32Array(data.flat()), data.length, data[0].length);
-    }
-
-    /**
-     * @param {Array<Array<Number>>} data 
-     * @returns {v32} new v32 array
-     */
-    static from_columns(data){
-        if (!data.every((item, index, arr)=>item.length===arr[0].length)) throw new Error("Columns must all be the same length");
-        let columns = data.length;
-        let rows    = data[0].length;
-
-        return new v32(
-            Float32Array.from(
-                new Float32Array(rows * columns),
-                (item, index) => data[index % columns][Math.floor(index / columns)]
-            ),
-            rows,
-            columns
-        )
-    }
-
-    /**
-     * @param {Array<Number>} data 
-     * @returns {v32} a new v32 array
-     */
-    static from_column(data){
-        return new v32(new Float32Array(data), data.length, 1);
-    }
-
-    /**
-     * @param {Array<Array<Number>>} index_pairs
-     * @param {v32} store
-     * @returns {v32} store
-     */
-    arg_delta_store(index_pairs, store){
-        let result_index = 0;
-        for(let i =0; i<index_pairs.length; i+=2){
-            let index_a = index_pairs[i]   * this.columns;
-            let index_b = index_pairs[i+1] * this.columns;
-            // let a = this.data.subarray(index_a, index_a + this.columns)
-            // let b = this.data.subarray(index_b, index_b + this.columns)
-            // for(let k=0; k < this.columns; k++){
-            //     store.data[result_index+k] = b[k]-a[k]
-            // }
-
-            for(let k=0; k < this.columns; k++){
-                store.data[result_index+k] = this.data[index_a + k] - this.data[index_b + k]
-            }
-
-            result_index += this.columns;
-        }
-        return store;
-    }
-
-    /**
-    * @returns {v32} a copy of this v32 object refering to a new array in memory
-    */
     clone(){
         return new v32(Float32Array.from(this.data), this.rows, this.columns);
     }
 
     /**
-    * @param {v32} other Copy values from other into self
-    * @returns {v32} self
-    */
+     * @param {v32} other Copy values from other into self
+     * @returns {v32} self
+     */
     copy_values(other){
         for(let i =0;i<this.data.length;i++){
             this.data[i] = other.data[i]
@@ -116,192 +98,302 @@ class v32{
         return this
     }
 
-    // ========================================
-    // == opperations on equaly sized arrays ==
-    // ========================================
-    /**
-     * Add other to self
-     * @param {v32} other
-     * @returns {v32} self
-     */
-    add_self(other){
-        for(let i = 0;i<this.data.length;i++){
-            this.data[i]+=other.data[i];
-        }
-        return this;
-    }
+    
+    
+    
+    // ========================= STATIC OPPERATORS =============================
+    // Because javascript does not have opperator overload (:
 
     /**
-     * sub other from self
-     * @param {v32} other 
-     * @returns {v32} self
+     * returns true if `a.rows === b.rows && a.columns === b.columns`
+     * @param {v32} a 
+     * @param {v32} b 
      */
-    sub_self(other){
-        for(let i = 0;i<this.data.length;i++){
-            this.data[i]-=other.data[i];
-        }
-        return this;
+    static same_shape(a, b){
+        return a.rows === b.rows && a.columns === b.columns;
     }
 
-    /**
-     * multiply other from self (elementwise)
-     * @param {v32} other 
-     * @returns {v32} self
-     */
-     mul_self(other){
-        for(let i = 0; i < this.data.length; i++){
-            this.data[i] *= other.data[i];
-        }
-        return this;
-    }
 
     /**
-     * divide self by other (elementwise) store in self
-     * @param {v32} other 
-     * @returns {v32} self
+     * find the difference between pairs of rows in `self` and stores the result in `store`.
+     * Pairs to be subtracted are defined by `index_pairs`.
+     * 
+     * **user to assert**
+     * `v32.same_shape(self, store)`
+     * `self.rows === index_pairs.length / 2`
+     * 
+     * @param   {v32}         self
+     * @param   {Uint32Array} index_pairs A flat array of pairs of indexes into `other`
+     * @param   {v32}         store an array with the same number of columns as `self`, such that `self` can store the result of subtracting elements of `other`
+     * @returns {v32}         store
      */
-    div_self(other){
-        for(let i = 0; i < this.data.length; i++){
-            this.data[i] /= other.data[i];
-        }
-        return this;
-    }
-
-    /**
-     * divide self by other column (broadcasting over columns) store in self
-     * @param {v32} other 
-     * @returns {v32} self
-     */
-     div_column_self(column){ // works best at 5_000_000 rows
-        for(let i = 0; i < column.data.length; i++){
-            let offset = i*this.columns;
-            for(let j=0;j<this.columns;j++){
-                this.data[offset + j] /= column.data[i];
+    static arg_delta(self, index_pairs, store){
+        let result_index = 0;
+        for(let i =0; i<index_pairs.length; i+=2){
+            let index_a = index_pairs[i]   * self.columns;
+            let index_b = index_pairs[i+1] * self.columns;
+            for(let k=0; k < self.columns; k++){
+                store.data[result_index+k] = self.data[index_a + k] - self.data[index_b + k]
             }
-        }
-        return this;
-    }
-
-    /**
-     * Multiply every column in self by the coresponding item in other (other must be a column vector)
-     * 
-     * `assert column.columns === 1`
-     * 
-     * `assert column.rows === this.rows`
-     * 
-     * @param {v32} other
-     * @returns {v32} self
-     */
-    mul_column_self(other){
-        
-        for(let i = 0; i < other.data.length; i++){
-            let offset = i * this.columns;
-            for(let j=0;j<this.columns;j++){
-                this.data[offset + j] *= other.data[i];
-            }
-        }
-        return this;
-    }
-
-    /**
-     * @param {Number} scalar
-     * @returns {v32} self
-     */
-     scalar_mul_self(scalar){
-        scalar = Math.fround(scalar)
-        for(let i = 0;i<this.data.length;i++){
-            this.data[i] *= scalar;
-        }
-        return this;
-    }
-
-
-    invert_self(){ 
-        for(let i = 0; i < this.data.length; i++){
-            this.data[i] = Math.fround(1) / this.data[i];
-        }
-        return this;
-    }
-
-    replace_nan_self(){ 
-        for(let i = 0; i < this.data.length; i++){
-            this.data[i] = isNaN(this.data[i]) ? 0 : this.data[i];
-        }
-        return this;
-    }
-
-    /**
-     * @param {v32} other
-     * @param {v32} store
-     * @returns {v32} store
-     */
-    add_store(other, store){
-        for(let i = 0;i<this.data.length;i++){
-            store.data[i] = this.data[i] + other.data[i];
+            result_index += self.columns;
         }
         return store;
     }
 
-    /**
-     * @param {v32} other
-     * @param {v32} store
-     * @returns {v32} store
-     */
-    sub_store(other, store){
-        for(let i = 0;i<this.data.length;i++){
-            store.data[i] = this.data[i] - other.data[i];
-        }
-        return store;
-    }
 
     /**
-     * @param {Number} scalar
-     * @param {v32} store
-     * @returns {v32} store
-     */
-    scalar_mul_store(scalar, store){
-        scalar = Math.fround(scalar)
-        for(let i = 0;i<this.data.length;i++){
-            store.data[i] = this.data[i] * scalar;
-        }
-        return store;
-    }
-
-    /**
-     * @param {Number} scalar
-     * @param {v32} store
-     * @returns {v32} store
-     */
-    scalar_div_store(scalar, store){
-        scalar = Math.fround(scalar)
-        for(let i = 0; i<this.data.length; i++){
-            store.data[i] = this.data[i] / scalar;
-        }
-        return store;
-    }
-
-    /**
-     * @param {v32} store
-     */
-    magnitude_store(store){
-        for(let i=0; i<this.rows; i+=1){
-            store.data[i] = Math.sqrt(this.data.subarray(i*this.columns, (i + 1)*this.columns).reduce((acc, cur)=>acc+cur**2, 0))
-        }
-        return store;
-    }
-
-    /**
+     * `store = self + other`
+     * @param {v32} self 
      * @param {v32} other 
-     * @param {Float32Array} store 
+     * @param {v32} store 
+     * @returns {v32} store
      */
-    dot_store(other, store){
-        for(let i = 0; i<this.data.length; i++){
-            store[i % row] += this.data[i] * other.data[i]
+    static add(self, other, store){
+        for(let i = 0; i<self.data.length; i++){
+            store.data[i] = self.data[i] + other.data[i];
         }
         return store;
     }
 
-    // norm_then_store()
+
+    /**
+     * `store = self - other`
+     * @param {v32} self 
+     * @param {v32} other 
+     * @param {v32} store 
+     * @returns {v32} store
+     */
+    static sub(self, other, store){
+        for(let i = 0; i<self.data.length; i++){
+            store.data[i] = self.data[i] - other.data[i];
+        }
+        return store;
+    }
+
+
+    /**
+     * `store[i] = self[i] * other[i]`
+     * @param {v32} self 
+     * @param {v32} other 
+     * @param {v32} store 
+     * @returns {v32} store
+     */
+    static mul(self, other, store){
+        for(let i = 0; i<self.data.length; i++){
+            store.data[i] = self.data[i] * other.data[i];
+        }
+        return store;
+    }
+
+
+    /**
+     * `store = self / other`
+     * @param {v32} self 
+     * @param {v32} other 
+     * @param {v32} store 
+     * @returns {v32} store
+     */
+    static div(self, other, store){
+        for(let i = 0; i<self.data.length; i++){
+            store.data[i] = self.data[i] / other.data[i];
+        }
+        return store;
+    }
+
+    
+
+    static replace_nans(self, store){
+        for(let i = 0; i < self.data.length; i++){
+            store.data[i] = isNaN(self.data[i]) ? 0 : self.data[i];
+        }
+        return store;
+    }
+
+
+    
+    /**
+     * Computes the L₂ magnitude of each row of `self` and stores in `store`
+     * 
+     * **user to assert**
+     * 
+     * `store.columns === 1`
+     * 
+     * `self.rows === store.rows`
+     * 
+     * @param {v32} self 
+     * @param {v32} store 
+     * @returns {v32} store
+     */
+    static magnitude(self, store){
+        for(let i=0; i<self.rows; i++){
+            let sum = 0;
+            for(let j=0; j<self.columns; j++){
+                sum += self[i*self.columns+j]**2;
+            }
+            store.data[i] = Math.sqrt(sum);
+        }
+        return store;
+    }
+
+    /**
+     * `store = self ∙ other`
+     * @param {v32} self 
+     * @param {v32} other
+     * @param {v32} store 
+     * @returns {v32} store
+     */
+    static dot(self, store){
+        throw new Error("dot() is Not Implemented Yet");
+        for(let i=0; i<self.rows; i++){
+
+        }
+        return store;
+    }
+
+    static column = {
+        /**
+         * `store[r,c] = self[r,c] + column[r,0]`
+         * @param {v32} self 
+         * @param {v32} column 
+         * @param {v32} store 
+         * @returns {v32} store
+         */
+        add(){
+            for(let i = 0; i < column.data.length; i++){
+                let offset = i * self.columns;
+                for(let j=0; j<self.columns; j++){
+                    store.data[offset + j] = self[offset + j] + other.data[i];
+                }
+            }
+            return store;
+        },
+
+        /**
+         * `store[r,c] = self[r,c] - column[r,0]`
+         * @param {v32} self 
+         * @param {v32} column 
+         * @param {v32} store 
+         * @returns {v32} store
+         */
+        sub(){
+            for(let i = 0; i < column.data.length; i++){
+                let offset = i * self.columns;
+                for(let j=0; j<self.columns; j++){
+                    store.data[offset + j] = self[offset + j] - other.data[i];
+                }
+            }
+            return store;
+        },
+
+        /**
+         * `store[r,c] = self[r,c] * column[r,0]`
+         * @param {v32} self 
+         * @param {v32} column 
+         * @param {v32} store 
+         * @returns {v32} store
+         */
+        mul(self, column, store){
+            for(let i = 0; i < column.data.length; i++){
+                let offset = i * self.columns;
+                for(let j=0; j<self.columns; j++){
+                    store.data[offset + j] = self[offset + j] * other.data[i];
+                }
+            }
+            return store;
+        },
+
+        /**
+         * `store[r,c] = self[r,c] / column[r,0]`
+         * @param {v32} self 
+         * @param {v32} column 
+         * @param {v32} store 
+         * @returns {v32} store
+         */
+        div(self, column, store){
+            for(let i = 0; i < column.data.length; i++){
+                let offset = i * self.columns;
+                for(let j=0; j<self.columns; j++){
+                    store.data[offset + j] = self[offset + j] / other.data[i];
+                }
+            }
+            return store;
+        },
+    }
+
+
+    static scalar = {
+        /** `store = self + scalar`
+         * @param {v32} self 
+         * @param {v32} scalar 
+         * @param {v32} store 
+         * @returns {v32} store
+         */
+        add(self, scalar, store){
+            let fround_scalar = Math.fround(scalar);
+            for(let i = 0; i<self.data.length; i++){
+                store.data[i] = self.data[i] + fround_scalar;
+            }
+            return store;
+        },
+
+        /** `store = self - scalar`
+         * @param {v32} self 
+         * @param {v32} scalar 
+         * @param {v32} store 
+         * @returns {v32} store
+         */
+        sub(self, scalar, store){
+            let fround_scalar = Math.fround(scalar);
+            for(let i = 0; i<self.data.length; i++){
+                store.data[i] = self.data[i] - fround_scalar;
+            }
+            return store;
+        },
+
+        /** `store = self * scalar`
+         * @param {v32} self 
+         * @param {v32} scalar 
+         * @param {v32} store 
+         * @returns {v32} store
+         */
+        mul(self, scalar, store){
+            let fround_scalar = Math.fround(scalar);
+            for(let i = 0; i<self.data.length; i++){
+                store.data[i] = self.data[i] * fround_scalar;
+            }
+            return store;
+        },
+
+        /** `store = self / scalar`
+         * @param {v32} self 
+         * @param {v32} scalar 
+         * @param {v32} store 
+         * @returns {v32} store
+         */
+        div(self, scalar, store){
+            let fround_scalar = Math.fround(scalar);
+            for(let i = 0; i<self.data.length; i++){
+                store.data[i] = self.data[i] / fround_scalar;
+            }
+            return store;
+        },
+
+        /** `store = scalar / self`
+         * @param {v32} self 
+         * @param {v32} scalar 
+         * @param {v32} store 
+         * @returns {v32} store
+         */
+        div_inverted(scalar, self, store){
+            let fround_scalar = Math.fround(scalar);
+            for(let i = 0; i<self.data.length; i++){
+                store.data[i] = fround_scalar / self.data[i];
+            }
+            return store;
+        }
+
+    }
+
 
     toString(){
         const PAD_WIDTH = 12;
@@ -332,9 +424,9 @@ class v32{
     }
 
 
-    * iter_rows(){
-        for(let i=0;i<this.data.length;i+=this.columns){
-            yield this.data.subarray(i, i+this.columns);
-        }
-    }
+    // * iter_rows(){
+    //     for(let i=0;i<this.data.length;i+=this.columns){
+    //         yield this.data.subarray(i, i+this.columns);
+    //     }
+    // }
 }

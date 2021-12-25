@@ -112,3 +112,17 @@ console.log(times.reduce((acc,item)=>acc+item)/times.length)
 // mul root f32: 15.23
 // mul root f64: 22.94
 
+function benchmark(f, name, iterations=20){
+    
+    let times = []
+    for(let i = 0;i < iterations;i++){
+        let s = performance.now()
+        f()
+        let e = performance.now()
+        times.push(e-s)
+    }
+    console.log(`=== BENCHMARK: ${name} ===`)
+    console.log(times)
+    console.log(times.reduce((acc,item)=>acc+item)/times.length)
+}
+
