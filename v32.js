@@ -26,7 +26,7 @@ class v32{
      * @param {Number} columns 
      */
     constructor(data, rows, columns){
-        if(rows * columns !== data.length) throw new Error("WRONG");
+        if(rows * columns !== data.length) throw new Error(`Invalid array length: ${rows} rows and ${columns} columns require a Float32Array of length ${rows*columns} however an array of length ${data.length} was provided.`);
         this.data = data;
         this.rows = rows;
         this.columns = columns;
@@ -35,13 +35,23 @@ class v32{
     // ========================= STATIC CONSTRUCTORS / FACTORY FUNCTIONS =======
 
     static from = {   
+        // /**
+        //  * @param {Number} rows 
+        //  * @param {Number} columns 
+        //  * @returns {v32} a zero filled array of the specified size
+        //  */
+        // zeros(rows, columns){
+        //     return new v32(new Float32Array(rows * columns), rows, columns);
+        // },
+
         /**
+         * @param {Number} constant
          * @param {Number} rows 
          * @param {Number} columns 
          * @returns {v32} a zero filled array of the specified size
          */
-        zeros(rows, columns){
-            return new v32(new Float32Array(rows * columns), rows, columns);
+        constant(constant, rows, columns){
+            return new v32(new Float32Array(rows * columns).fill(constant), rows, columns);
         },
 
         /**
@@ -119,23 +129,23 @@ class v32{
      * Pairs to be subtracted are defined by `index_pairs`.
      * 
      * **user to assert**
-     * `v32.same_shape(self, store)`
+     * 
+     * `self.columns === store.columns`
+     * `store.rows === index_pairs.length`
      * `self.rows === index_pairs.length / 2`
      * 
      * @param   {v32}         self
-     * @param   {Uint32Array} index_pairs A flat array of pairs of indexes into `other`
-     * @param   {v32}         store an array with the same number of columns as `self`, such that `self` can store the result of subtracting elements of `other`
+     * @param   {Uint32Array} index_pairs A flat array of pairs of indexes into `self`
+     * @param   {v32}         store an array with the same number of columns as `self`, and the same number of elements as `index_pairs`
      * @returns {v32}         store
      */
     static arg_delta(self, index_pairs, store){
-        let result_index = 0;
-        for(let i =0; i<index_pairs.length; i+=2){
-            let index_a = index_pairs[i]   * self.columns;
-            let index_b = index_pairs[i+1] * self.columns;
+        for(let i=0; i < index_pairs.length; i+=2){
+            let index_a     = index_pairs[i]   * self.columns;
+            let index_b     = index_pairs[i+1] * self.columns;
             for(let k=0; k < self.columns; k++){
-                store.data[result_index+k] = self.data[index_a + k] - self.data[index_b + k]
+                store.data[i + k] = self.data[index_a + k] - self.data[index_b + k];
             }
-            result_index += self.columns;
         }
         return store;
     }
@@ -201,7 +211,11 @@ class v32{
     }
 
     
-
+    /** Replaces all NaN elements with zero
+     * @param {v32} self 
+     * @param {v32} store 
+     * @returns {v32} store
+     */
     static replace_nans(self, store){
         for(let i = 0; i < self.data.length; i++){
             store.data[i] = isNaN(self.data[i]) ? 0 : self.data[i];
@@ -227,8 +241,9 @@ class v32{
     static magnitude(self, store){
         for(let i=0; i<self.rows; i++){
             let sum = 0;
+            let index_store = i*self.columns;
             for(let j=0; j<self.columns; j++){
-                sum += self[i*self.columns+j]**2;
+                sum += self.data[index_store + j]**2;
             }
             store.data[i] = Math.sqrt(sum);
         }
@@ -258,11 +273,11 @@ class v32{
          * @param {v32} store 
          * @returns {v32} store
          */
-        add(){
+        add(self, column, store){
             for(let i = 0; i < column.data.length; i++){
                 let offset = i * self.columns;
-                for(let j=0; j<self.columns; j++){
-                    store.data[offset + j] = self[offset + j] + other.data[i];
+                for(let j=0; j < self.columns; j++){
+                    store.data[offset + j] = self.data[offset + j] + column.data[i];
                 }
             }
             return store;
@@ -275,11 +290,11 @@ class v32{
          * @param {v32} store 
          * @returns {v32} store
          */
-        sub(){
+        sub(self, column, store){
             for(let i = 0; i < column.data.length; i++){
                 let offset = i * self.columns;
-                for(let j=0; j<self.columns; j++){
-                    store.data[offset + j] = self[offset + j] - other.data[i];
+                for(let j=0; j < self.columns; j++){
+                    store.data[offset + j] = self.data[offset + j] - column.data[i];
                 }
             }
             return store;
@@ -295,8 +310,8 @@ class v32{
         mul(self, column, store){
             for(let i = 0; i < column.data.length; i++){
                 let offset = i * self.columns;
-                for(let j=0; j<self.columns; j++){
-                    store.data[offset + j] = self[offset + j] * other.data[i];
+                for(let j=0; j < self.columns; j++){
+                    store.data[offset + j] = self.data[offset + j] * column.data[i];
                 }
             }
             return store;
@@ -312,8 +327,8 @@ class v32{
         div(self, column, store){
             for(let i = 0; i < column.data.length; i++){
                 let offset = i * self.columns;
-                for(let j=0; j<self.columns; j++){
-                    store.data[offset + j] = self[offset + j] / other.data[i];
+                for(let j=0; j < self.columns; j++){
+                    store.data[offset + j] = self.data[offset + j] / column.data[i];
                 }
             }
             return store;
@@ -424,9 +439,9 @@ class v32{
     }
 
 
-    // * iter_rows(){
-    //     for(let i=0;i<this.data.length;i+=this.columns){
-    //         yield this.data.subarray(i, i+this.columns);
-    //     }
-    // }
+    * iter_rows(){
+        for(let i=0;i<this.data.length;i+=this.columns){
+            yield this.data.subarray(i, i+this.columns);
+        }
+    }
 }
