@@ -1,14 +1,27 @@
-// numpy defaults to row major ordering in memory layout... i dont know what that means; we have opted for
-//  0,  1,  2
-//  3,  4,  5
-//  6,  7,  8
-//  9, 10, 11
-// 12, 13, 14
-// 15, 16, 17
-// ....
-
-
 /**
+ * Wrapper calss to work with Float32Array as if it was a collection of r×c vectors
+ * 
+ * I read somewhere that numpy defaults to row major ordering in memory layout...
+ * I didn't take the time to confirm I understood what that means exactly.
+ * I gave up trying to predict which layout would be better and went with something where the array indecies are in a shape like this:
+ * ```
+ *  0,  1,  2
+ *  3,  4,  5
+ *  6,  7,  8
+ *  9, 10, 11
+ *  ...
+ * ```
+ * 
+ * where, if working with 3D vectors, this would be interpreted as 
+ * 
+ * ```
+ * x0, y0, z0
+ * x1, y1, z1
+ * x2, y2, z2
+ * x3, y3, z3
+ * ...
+ * ```
+ * 
  * @property {Float32Array} data
  * @property {number} rows
  * @property {number} columns
@@ -136,8 +149,8 @@ class v32{
      * 
      * @param   {v32}         self
      * @param   {Uint32Array} index_pairs A flat array of pairs of indexes into `self`
-     * @param   {v32}         store an array with the same number of columns as `self`, and the same number of elements as `index_pairs`
-     * @returns {v32}         store
+     * @param   {v32}         store an array with the same number of columns as `self`, and the same number of elements as `index_pairs` in the form `[a0,b0, a1,b1, a2,b2, ...]`
+     * @returns {v32}         store, the result in the form [b0-a0, b1-a1, b2-a2, ...]
      */
     static arg_delta(self, index_pairs, store){
         for(let i=0; i < index_pairs.length; i+=2){
@@ -219,6 +232,18 @@ class v32{
     static replace_nans(self, store){
         for(let i = 0; i < self.data.length; i++){
             store.data[i] = isNaN(self.data[i]) ? 0 : self.data[i];
+        }
+        return store;
+    }
+
+    /** Replaces all Infinite elements with zero
+     * @param {v32} self 
+     * @param {v32} store 
+     * @returns {v32} store
+     */
+     static replace_infinite(self, store){
+        for(let i = 0; i < self.data.length; i++){
+            store.data[i] = isFinite(self.data[i]) ? self.data[i] : 0;
         }
         return store;
     }
