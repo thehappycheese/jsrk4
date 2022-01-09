@@ -77,8 +77,8 @@ v32.custom = {
         
         const a = 2;     
         const b = 20;
-        const c = 1 - 0.9998; 
-        const d = 1 - 0.98;
+        const c = 1 - 0.9999; 
+        const d = 1 - 0.99;
         for(let i = 0; i< speed_out.data.length; i++){
             let ratio = -((c - d)/(1 + Math.exp((speed_out.data[i] - b)/a)) + d);
             let offset = i * velocity.columns;

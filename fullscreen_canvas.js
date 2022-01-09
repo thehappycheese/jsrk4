@@ -20,8 +20,8 @@ function make_fullscreen_canvas(){
         window_resize_demounce_timeout = setTimeout(resize, 200)   
     }
     function resize(){
-        canvas.width = canvas.offsetWidth
-        canvas.height = canvas.offsetHeight
+        canvas.width  = 2 * canvas.offsetWidth
+        canvas.height = 2 * canvas.offsetHeight
     }
 
 
